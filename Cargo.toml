@@ -1,0 +1,33 @@
+[package]
+edition = "2021"
+name = "zonefile-rs"
+version = "0.1.0"
+
+[lib]
+name = "zonefile_rs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "zonefile-rs"
+path = "src/main.rs"
+
+[dependencies]
+# TOML parsing
+serde = {version = "1.0", features = ["derive"]}
+toml = "0.8"
+
+# CLI argument parsing
+clap = {version = "4.5", features = ["derive"]}
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Date/Time for serial numbers
+chrono = "0.4"
+
+hex = "0.4.3"
+ipnetwork = {version = "0.21.1", features = ["serde"]}
+
+[dev-dependencies]
+tempfile = "3.8"
