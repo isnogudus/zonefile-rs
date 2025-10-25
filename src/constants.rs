@@ -1,0 +1,9 @@
+pub const DEFAULT_EXPIRE: u32 = 1209600;
+pub const DEFAULT_MX_PRIO: u16 = 0;
+pub const DEFAULT_NRC_TTL: u32 = 3600;
+pub const DEFAULT_REFRESH: u32 = 7200;
+pub const DEFAULT_RETRY: u32 = 3600;
+pub const DEFAULT_SRV_PRIO: u16 = 5;
+pub const DEFAULT_SRV_WEIGHT: u16 = 10;
+pub const DEFAULT_TTL: u32 = 10800;
+pub const DEFAULT_WITH_PTR: bool = true;
