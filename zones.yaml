@@ -1,0 +1,185 @@
+defaults:
+  email: admin@example.com
+  nameserver: ns1.example.com.
+reverse:
+  - 192.168.0.0/16
+  - fd00:1234:5678:1000::/64
+  - fd00:1234:5678:2000::/64
+zone:
+  internal.example.com:
+    with-ptr: false
+    hosts:
+      unifi:
+        alias: "@"
+        ip: 192.168.21.5
+
+  apps.example.com:
+    with-ptr: false
+    hosts:
+      docker:
+        alias: "*"
+        ip:  [192.168.21.5, fd00:1234:5678:1000::5]
+      homeassistant: [192.168.21.37, fd00:1234:5678:1000::25]
+      mail: [192.168.21.20, fd00:1234:5678:1000::14]
+      mcp: [192.168.21.2, fd00:1234:5678:1000::2]
+      proxmox: [192.168.21.2, fd00:1234:5678:1000::2]
+    cname:
+      addresses: radicale
+      contacts: radicale
+
+  example.com:
+    mx:
+      name: mail
+      prio: 10
+    hosts:
+      gateway:
+        ip: [203.0.113.1, 2001:db8::1]
+        with-ptr: false
+      mqtt:
+        ip: 192.168.21.1
+        with-ptr: false
+      router:
+        alias: ["@",dns,mqtt,ns1,ntp,proxy,time,wpad,www]
+        ip: [192.168.21.1, fd00:1234:5678:1000::1]
+      server1:  [192.168.21.2,fd00:1234:5678:1000::2]
+      server2: [192.168.21.3, fd00:1234:5678:1000::3]
+      backup: [192.168.21.4, fd00:1234:5678:1000::4]
+      docker: [192.168.21.5, fd00:1234:5678:1000::5]
+      storage: [192.168.21.6, fd00:1234:5678:1000::6]
+      db:  [192.168.21.7, fd00:1234:5678:1000::7]
+      service: [192.168.21.8, fd00:1234:5678:1000::8]
+      controller: [192.168.21.10, fd00:1234:5678:1000::a]
+      archive: [192.168.21.11, fd00:1234:5678:1000::b]
+      printer: 192.168.21.12
+      adblock: [192.168.21.13, fd00:1234:5678:1000::d]
+
+      nas:  [192.168.21.17,fd00:1234:5678:1000::11]
+      files:  [192.168.21.18,fd00:1234:5678:1000::12]
+      mail: [192.168.21.20, fd00:1234:5678:1000::14]
+
+      bookmarks: 192.168.21.23
+
+      homeassistant: 192.168.21.37
+
+      office_printer: [192.168.21.200, fd00:1234:5678:1000::c8]
+
+      ap2: 192.168.21.247
+      switch2: 192.168.21.248
+      switch0: 192.168.21.249
+      switch1: 192.168.21.250
+      main_switch: 192.168.21.251
+      ap1: 192.168.21.252
+      ap0: 192.168.21.253
+    srv:
+      _caldavs._tcp:
+        port: 443
+        target: "@"
+      _carddavs._tcp:
+        port: 443
+        target: "@"
+      _mqtt._tcp:
+        port: 1883
+        target: mqtt
+      _mqtts._tcp:
+        port: 8883
+        target: mqtt
+      _secure-mqtt._tcp:
+        port: 8883
+        target: mqtt
+
+  dmz.example.com:
+    mx:
+      name: mail.example.com.
+      prio: 10
+    hosts:
+      db: 192.168.114.7
+      service: 192.168.114.8
+
+      git: 192.168.114.100
+      auth: 192.168.114.101
+      ldap: 192.168.114.102
+      media: 192.168.114.103
+      vault: 192.168.114.104
+      rss: 192.168.114.105
+      calendar: 192.168.114.106
+      storage: 192.168.114.107
+
+  iot.example.com:
+    mx: mail.example.com.
+    hosts:
+      controller: 192.168.200.13
+      automation: 192.168.200.14
+      monitor: 192.168.200.15
+
+  devices.example.com:
+    mx: mail.example.com.
+    hosts:
+      time:
+        alias: mqtt
+        ip: 192.168.201.1
+      ha: fd00:1234:5678:3000::1
+
+      light-office-ceiling: 192.168.201.100
+      thermostat-office: 192.168.201.101
+      light-bedroom-ceiling: 192.168.201.102
+      light-living-ceiling: 192.168.201.103
+      thermostat-bath: 192.168.201.104
+      light-entrance: 192.168.201.105
+      light-bath-ceiling: 192.168.201.106
+
+      switch-01: 192.168.201.10
+      switch-02: 192.168.201.11
+      switch-03: 192.168.201.12
+
+      sensor-01: 192.168.201.20
+      sensor-02: 192.168.201.21
+      sensor-03: 192.168.201.22
+      sensor-04: 192.168.201.23
+      sensor-05: 192.168.201.24
+      sensor-06: 192.168.201.25
+      sensor-07: 192.168.201.26
+      sensor-08: 192.168.201.27
+      sensor-09: 192.168.201.28
+      sensor-10: 192.168.201.29
+      relay-01: 192.168.201.30
+      relay-02: 192.168.201.31
+      relay-03: 192.168.201.32
+      relay-04: 192.168.201.33
+      relay-05: 192.168.201.34
+      relay-06: 192.168.201.35
+
+      smoke-detector-01: 192.168.201.40
+      smoke-detector-02: 192.168.201.41
+      smoke-detector-03: 192.168.201.42
+      smoke-detector-04: 192.168.201.43
+
+      dimmer-01: 192.168.201.50
+
+      shutter-01: 192.168.201.60
+      shutter-02: 192.168.201.61
+      shutter-03: 192.168.201.62
+      shutter-04: 192.168.201.63
+      shutter-05: 192.168.201.64
+
+      plug-01: 192.168.201.70
+      plug-02: 192.168.201.71
+      plug-03: 192.168.201.72
+
+      input-module-01: 192.168.201.80
+      input-module-02: 192.168.201.81
+
+    cname:
+      garage-light: relay-01
+
+  cluster.example.com:
+    mx: mail.example.com.
+    hosts:
+      node1: [192.168.93.1,fd00:1234:5678:2000::1]
+      node2: [192.168.93.2,fd00:1234:5678:2000::2]
+      node3: [192.168.93.3,fd00:1234:5678:2000::3]
+      node4: [192.168.93.4,fd00:1234:5678:2000::4]
+
+      mailserver: [192.168.93.67,fd00:1234:5678:2000::67]
+      webserver: [192.168.93.68,fd00:1234:5678:2000::68]
+      appserver: [192.168.93.69,fd00:1234:5678:2000::69]
+      dbserver: [192.168.93.71,fd00:1234:5678:2000::71]

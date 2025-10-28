@@ -1,7 +1,23 @@
 [package]
+authors = ["isnogudus <24520199+isnogudus@users.noreply.github.com>"]
+categories = ["command-line-utilities", "network-programming"]
+description = "DNS zone file generator with YAML/TOML support and precise error reporting"
 edition = "2021"
+homepage = "https://github.com/isnogudus/zonefile-rs"
+keywords = ["dns", "zonefile", "yaml", "toml", "networking"]
+license = "MIT"
 name = "zonefile-rs"
-version = "0.1.0"
+readme = "README.md"
+repository = "https://github.com/isnogudus/zonefile-rs"
+rust-version = "1.88"
+version = "0.2.0"
+
+[features]
+default = ["yaml", "toml", "nsd", "unbound"]
+nsd = []
+toml = ["dep:toml"]
+unbound = []
+yaml = ["dep:serde_yml"]
 
 [lib]
 name = "zonefile_rs"
@@ -11,10 +27,18 @@ path = "src/lib.rs"
 name = "zonefile-rs"
 path = "src/main.rs"
 
+[profile.release]
+codegen-units = 1 # Better optimization
+lto = true # Link-Time Optimization
+opt-level = "z" # Optimize for size
+strip = true # Remove debug symbols
+
 [dependencies]
-# TOML parsing
+# TOML/YAML parsing
 serde = {version = "1.0", features = ["derive"]}
-toml = "0.8"
+serde_path_to_error = "0.1"
+serde_yml = {version = "0.0.12", optional = true}
+toml = {version = "0.8", optional = true}
 
 # CLI argument parsing
 clap = {version = "4.5", features = ["derive"]}

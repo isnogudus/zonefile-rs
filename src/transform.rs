@@ -1,10 +1,9 @@
 use crate::parser::{
-    CnameEntry, ForwardZone, HostValue, MxEntry, NameserverEntry, ReverseEntry, ReverseZone,
-    SessionDefaults, SrvEntry, Zone, ZoneBase,
+    CnameEntry, ForwardZone, HostValue, MxEntry, NameserverEntry, ReverseValue, ReverseZone,
+    SessionDefaults, TTL, Zone, ZoneBase,
 };
 use crate::record::{CnameRecord, NsRecord, PtrRecord, SrvRecord};
 use crate::validation::validate_dns_name;
-use crate::validation::validate_email;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -14,6 +13,13 @@ use crate::{
     record::{ARecord, MxRecord},
 };
 use anyhow::{bail, Result};
+
+pub fn parse_ttl(raw: &Option<TTL>, default: u32) -> u32 {
+    match raw {
+        Some(ttl) => ttl.0,
+        None => default,
+    }
+}
 
 /// Converts a hostname to FQDN (Fully Qualified Domain Name)
 pub fn parse_host_str(name: &str, zone_name: &str) -> Result<String> {
@@ -67,7 +73,7 @@ pub fn parse_email(raw: &str) -> Result<String> {
     }
     let email = format!("{escaped_local}.{dom}");
 
-    validate_email(&email)?;
+    // Email wurde bereits in Email validiert, keine zweite Validierung nötig
 
     Ok(email)
 }
@@ -77,7 +83,7 @@ pub fn parse_mx(
     zone_name: &str,
     default_ttl: u32,
     default_mx_prio: u16,
-    default_mx: &Vec<MxEntry>,
+    default_mx: &[MxEntry],
 ) -> Result<Vec<MxRecord>> {
     match raw {
         Some(entry) => entry
@@ -88,11 +94,11 @@ pub fn parse_mx(
                     StringOrTableValue::Entry(e) => (e, default_ttl, default_mx_prio),
                     StringOrTableValue::Table(t) => (
                         t.name,
-                        t.ttl.unwrap_or(default_ttl),
+                        parse_ttl(&t.ttl, default_ttl),
                         t.prio.unwrap_or(default_mx_prio),
                     ),
                 };
-                let fqdn = parse_host_str(&name, &zone_name)?;
+                let fqdn = parse_host_str(&name, zone_name)?;
                 validate_dns_name(&fqdn)?;
                 Ok(MxRecord {
                     name: fqdn,
@@ -102,11 +108,11 @@ pub fn parse_mx(
             })
             .collect(),
         None => default_mx
-            .into_iter()
+            .iter()
             .map(|entry| {
                 Ok(MxRecord {
                     name: entry.name.clone(),
-                    ttl: entry.ttl.unwrap_or(default_ttl),
+                    ttl: parse_ttl(&entry.ttl, default_ttl),
                     prio: entry.prio.unwrap_or(default_mx_prio),
                 })
             })
@@ -118,7 +124,7 @@ pub fn parse_ns(
     raw: Option<SingleOrVecValue<StringOrTableValue<NameserverEntry>>>,
     zone_name: &str,
     default_ttl: u32,
-    default_ns: &Vec<String>,
+    default_ns: &[String],
 ) -> Result<Vec<NsRecord>> {
     match raw {
         Some(zone_ns) => zone_ns
@@ -127,9 +133,9 @@ pub fn parse_ns(
             .map(|entry| {
                 let (name, ttl) = match entry {
                     StringOrTableValue::Entry(e) => (e, default_ttl),
-                    StringOrTableValue::Table(t) => (t.name, t.ttl.unwrap_or(default_ttl)),
+                    StringOrTableValue::Table(t) => (t.name, parse_ttl(&t.ttl, default_ttl)),
                 };
-                let fqdn = parse_host_str(&name, &zone_name)?;
+                let fqdn = parse_host_str(&name, zone_name)?;
                 validate_dns_name(&fqdn)?;
                 Ok(NsRecord { name: fqdn, ttl })
             })
@@ -139,7 +145,7 @@ pub fn parse_ns(
                 bail!("Forward zone {zone_name} needs a nameserver")
             }
             let records: Vec<NsRecord> = default_ns
-                .into_iter()
+                .iter()
                 .map(|name| NsRecord {
                     name: name.clone(),
                     ttl: default_ttl,
@@ -161,7 +167,7 @@ pub fn parse_cname(
             let name = parse_host_str(&cname, zone_name)?;
             let (host, ttl) = match entry {
                 StringOrTableValue::Entry(e) => (e, default_ttl),
-                StringOrTableValue::Table(t) => (t.target, t.ttl.unwrap_or(default_ttl)),
+                StringOrTableValue::Table(t) => (t.target, parse_ttl(&t.ttl, default_ttl)),
             };
             let target = parse_host_str(&host, zone_name)?;
             Ok(CnameRecord { name, target, ttl })
@@ -170,18 +176,19 @@ pub fn parse_cname(
 }
 
 pub fn parse_srv(
-    raw: Option<HashMap<String, SrvEntry>>,
+    raw: Option<crate::parser::SrvMap>,
     zone_name: &str,
     default_ttl: u32,
     default_srv_prio: u16,
     default_srv_weight: u16,
 ) -> Result<Vec<SrvRecord>> {
-    raw.unwrap_or_default()
+    raw.map(|m| m.0)
+        .unwrap_or_default()
         .into_iter()
         .map(|(srv_name, entry)| {
             let name = parse_srv_name(&srv_name, zone_name)?;
             let target = parse_host_str(&entry.target, zone_name)?;
-            let ttl = entry.ttl.unwrap_or(default_ttl);
+            let ttl = parse_ttl(&entry.ttl, default_ttl);
             let prio = entry.prio.unwrap_or(default_srv_prio);
             let weight = entry.weight.unwrap_or(default_srv_weight);
             Ok(SrvRecord {
@@ -213,7 +220,7 @@ pub fn parse_hosts(
             HostValue::Entry(entry) => (
                 entry.ip.to_vec(),
                 entry.alias.map(|a| a.to_vec()).unwrap_or_default(),
-                entry.ttl.unwrap_or(default_ttl),
+                parse_ttl(&entry.ttl, default_ttl),
                 entry.with_ptr.unwrap_or(default_with_ptr),
             ),
         };
@@ -224,7 +231,7 @@ pub fn parse_hosts(
                 ttl,
             });
             for alias in &aliases {
-                let name = parse_host_str(&alias, zone_name)?;
+                let name = parse_host_str(alias, zone_name)?;
                 a_records.push(ARecord { name, ip, ttl });
             }
             if with_ptr && !fqdn.starts_with('*') {
@@ -315,22 +322,22 @@ pub fn parse_forward(
         zone_name.push('.')
     }
 
-    let serial = raw.serial.unwrap_or(defaults.serial);
-    let expire = raw.expire.unwrap_or(defaults.expire);
+    let serial = raw.base.serial.unwrap_or(defaults.serial);
+    let expire = raw.base.expire.unwrap_or(defaults.expire);
     let mx_prio = raw.mx_prio.unwrap_or(defaults.mx_prio);
-    let nrc_ttl = raw.nrc_ttl.unwrap_or(defaults.nrc_ttl);
-    let refresh = raw.refresh.unwrap_or(defaults.refresh);
-    let retry = raw.retry.unwrap_or(defaults.retry);
+    let nrc_ttl = raw.base.nrc_ttl.unwrap_or(defaults.nrc_ttl);
+    let refresh = raw.base.refresh.unwrap_or(defaults.refresh);
+    let retry = raw.base.retry.unwrap_or(defaults.retry);
     let srv_prio = raw.srv_prio.unwrap_or(defaults.srv_prio);
     let srv_weight = raw.srv_weight.unwrap_or(defaults.srv_weight);
-    let ttl = raw.ttl.unwrap_or(defaults.ttl);
+    let ttl = parse_ttl(&raw.base.ttl, defaults.ttl);
     let with_ptr = raw.with_ptr.unwrap_or(defaults.with_ptr);
 
     if retry >= refresh {
         bail!("retry ({retry}) must be less than refresh {refresh}")
     }
 
-    let email = match raw.email {
+    let email = match raw.base.email {
         Some(mail) => parse_email(&mail)?,
         None => match defaults.email.clone() {
             Some(default_mail) => default_mail,
@@ -340,7 +347,7 @@ pub fn parse_forward(
 
     let (hosts, ptr) = parse_hosts(raw.hosts, &zone_name, ttl, with_ptr)?;
     let mx = parse_mx(raw.mx, &zone_name, ttl, mx_prio, &defaults.mx)?;
-    let nameserver = parse_ns(raw.nameserver, &zone_name, ttl, &defaults.nameserver)?;
+    let nameserver = parse_ns(raw.base.nameserver, &zone_name, ttl, &defaults.nameserver)?;
     let cname: Vec<CnameRecord> = parse_cname(raw.cname, &zone_name, ttl)?;
     let srv: Vec<SrvRecord> = parse_srv(raw.srv, &zone_name, ttl, srv_prio, srv_weight)?;
 
@@ -367,78 +374,133 @@ pub fn parse_forward(
 }
 
 pub fn parse_reverse(
-    raw: Option<HashMap<IpNetwork, ReverseEntry>>,
+    raw: Option<ReverseValue>,
     defaults: &SessionDefaults,
     mut ptrs: HashMap<IpAddr, PtrRecord>,
 ) -> Result<Vec<ReverseZone>> {
     let mut net4: Vec<Ipv4Network> = vec![];
     let mut net6: Vec<Ipv6Network> = vec![];
-    let zones: Result<Vec<ReverseZone>> = raw
-        .unwrap_or_default()
-        .into_iter()
-        .map(|(net, entry)| {
-            match net {
-                IpNetwork::V4(n4) => {
-                    for n in &net4 {
-                        if n.overlaps(n4) {
-                            bail!("Reverse zone networks overlap: {n4} and {n}")
+    let zones: Result<Vec<ReverseZone>> = match raw {
+        Some(ReverseValue::Entry(entry)) => entry
+            .into_iter()
+            .map(|(net, entry)| {
+                match net {
+                    IpNetwork::V4(n4) => {
+                        for n in &net4 {
+                            if n.overlaps(n4) {
+                                bail!("Reverse zone networks overlap: {n4} and {n}")
+                            }
                         }
+                        net4.push(n4)
                     }
-                    net4.push(n4)
-                }
-                IpNetwork::V6(n6) => {
-                    for n in &net6 {
-                        if n.overlaps(n6) {
-                            bail!("Reverse zone networks overlap: {n6} and {n}")
+                    IpNetwork::V6(n6) => {
+                        for n in &net6 {
+                            if n.overlaps(n6) {
+                                bail!("Reverse zone networks overlap: {n6} and {n}")
+                            }
                         }
+                        net6.push(n6)
                     }
-                    net6.push(n6)
                 }
-            }
-            let (name, split) = create_reverse_zone_name(&net);
-            let serial = entry.serial.unwrap_or(defaults.serial);
-            let expire = entry.expire.unwrap_or(defaults.expire);
-            let nrc_ttl = entry.nrc_ttl.unwrap_or(defaults.nrc_ttl);
-            let refresh = entry.refresh.unwrap_or(defaults.refresh);
-            let retry = entry.retry.unwrap_or(defaults.retry);
-            let ttl = entry.ttl.unwrap_or(defaults.ttl);
+                let (name, split) = create_reverse_zone_name(&net);
+                let serial = entry.base.serial.unwrap_or(defaults.serial);
+                let expire = entry.base.expire.unwrap_or(defaults.expire);
+                let nrc_ttl = entry.base.nrc_ttl.unwrap_or(defaults.nrc_ttl);
+                let refresh = entry.base.refresh.unwrap_or(defaults.refresh);
+                let retry = entry.base.retry.unwrap_or(defaults.retry);
+                let ttl = parse_ttl(&entry.base.ttl, defaults.ttl);
 
-            if retry >= refresh {
-                bail!("retry ({retry}) must be less than refresh {refresh}")
-            }
+                if retry >= refresh {
+                    bail!("retry ({retry}) must be less than refresh {refresh}")
+                }
 
-            let email = match entry.email {
-                Some(mail) => parse_email(&mail)?,
-                None => match defaults.email.clone() {
-                    Some(default_mail) => default_mail,
-                    None => bail!("Email is required"),
-                },
-            };
+                let email = match entry.base.email {
+                    Some(mail) => parse_email(&mail)?,
+                    None => match defaults.email.clone() {
+                        Some(default_mail) => default_mail,
+                        None => bail!("Email is required"),
+                    },
+                };
 
-            let nameserver = parse_ns(entry.nameserver, &name, ttl, &defaults.nameserver)?;
+                let nameserver = parse_ns(entry.base.nameserver, &name, ttl, &defaults.nameserver)?;
 
-            let ptr: Vec<PtrRecord> = ptrs
-                .extract_if(|ip, _ptr| net.contains(*ip))
-                .map(|(_ip, ptr)| ptr)
-                .collect();
+                let ptr: Vec<PtrRecord> = ptrs
+                    .extract_if(|ip, _ptr| net.contains(*ip))
+                    .map(|(_ip, ptr)| ptr)
+                    .collect();
 
-            Ok(ReverseZone {
-                base: ZoneBase {
-                    serial,
-                    name,
-                    email,
-                    expire,
-                    nameserver,
-                    nrc_ttl,
-                    refresh,
-                    retry,
-                    ttl,
-                },
-                ptr,
-                split,
+                Ok(ReverseZone {
+                    base: ZoneBase {
+                        serial,
+                        name,
+                        email,
+                        expire,
+                        nameserver,
+                        nrc_ttl,
+                        refresh,
+                        retry,
+                        ttl,
+                    },
+                    ptr,
+                    split,
+                })
             })
-        })
-        .collect();
+            .collect(),
+        Some(ReverseValue::Net(network)) => network
+            .to_vec()
+            .iter()
+            .map(|net| {
+                match net {
+                    IpNetwork::V4(n4) => {
+                        for n in &net4 {
+                            if n.overlaps(*n4) {
+                                bail!("Reverse zone networks overlap: {n4} and {n}")
+                            }
+                        }
+                        net4.push(*n4)
+                    }
+                    IpNetwork::V6(n6) => {
+                        for n in &net6 {
+                            if n.overlaps(*n6) {
+                                bail!("Reverse zone networks overlap: {n6} and {n}")
+                            }
+                        }
+                        net6.push(*n6)
+                    }
+                }
+                let (name, split) = create_reverse_zone_name(net);
+
+                let email = match &defaults.email {
+                    Some(mail) => mail.clone(),
+                    None => bail!("Email is required"),
+                };
+
+                let nameserver = parse_ns(None, &name, defaults.ttl, &defaults.nameserver)?;
+
+                let ptr: Vec<PtrRecord> = ptrs
+                    .extract_if(|ip, _ptr| net.contains(*ip))
+                    .map(|(_ip, ptr)| ptr)
+                    .collect();
+
+                Ok(ReverseZone {
+                    base: ZoneBase {
+                        serial: defaults.serial,
+                        name,
+                        email,
+                        expire: defaults.expire,
+                        nameserver,
+                        nrc_ttl: defaults.nrc_ttl,
+                        refresh: defaults.refresh,
+                        retry: defaults.retry,
+                        ttl: defaults.ttl,
+                    },
+                    ptr,
+                    split,
+                })
+            })
+            .collect(),
+        None => Ok(Vec::new()),
+    };
 
     zones
 }

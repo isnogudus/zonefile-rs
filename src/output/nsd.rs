@@ -54,7 +54,7 @@ fn write_soa(base: &ZoneBase) -> String {
 
     writeln!(output, "$ORIGIN {name}").unwrap();
     writeln!(output, "$TTL {ttl}").unwrap();
-    writeln!(output, "").unwrap();
+    writeln!(output).unwrap();
 
     writeln!(
         output,
@@ -92,8 +92,24 @@ pub fn write_nsd(
 ) -> anyhow::Result<()> {
     let master_dir = output_dir.join("master");
     let master = master_dir.display();
-    fs::create_dir_all(output_dir).ok();
-    fs::create_dir_all(&master_dir).ok();
+    fs::create_dir_all(output_dir).or_else(
+        |e| {
+            if output_dir.is_dir() {
+                Ok(())
+            } else {
+                Err(e)
+            }
+        },
+    )?;
+    fs::create_dir_all(&master_dir).or_else(
+        |e| {
+            if output_dir.is_dir() {
+                Ok(())
+            } else {
+                Err(e)
+            }
+        },
+    )?;
 
     let mut conf = String::new();
     let mut files: HashMap<String, String> = HashMap::new();
@@ -106,7 +122,7 @@ pub fn write_nsd(
         writeln!(conf, "zone:").unwrap();
         writeln!(conf, "    name: {zone_name}").unwrap();
         writeln!(conf, "    zonefile: master/{zone_name}zone").unwrap();
-        writeln!(conf, "").unwrap();
+        writeln!(conf).unwrap();
 
         output.push_str(&write_soa(&zone.base));
 
@@ -184,7 +200,7 @@ pub fn write_nsd(
         writeln!(conf, "zone:").unwrap();
         writeln!(conf, "    name: {zone_name}").unwrap();
         writeln!(conf, "    zonefile: master/{zone_name}zone").unwrap();
-        writeln!(conf, "").unwrap();
+        writeln!(conf).unwrap();
 
         let soa = write_soa(&zone.base);
         output.push_str(&soa);

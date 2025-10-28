@@ -93,7 +93,7 @@ mod tests {
         let new = calc_serial(old);
         // New serial should be current date based (YYYYMMDD00)
         assert!(new >= 2025000000);
-        assert!(new % 100 == 0); // Sequence should start at 00
+        assert!(new.is_multiple_of(100)); // Sequence should start at 00
     }
 
     #[test]

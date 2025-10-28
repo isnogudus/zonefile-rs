@@ -1,2 +1,24 @@
-/target
+# Build outputs
+/target/
+**/*.rs.bk
+**/*.rs.bak
+*.pdb
+
+# Generated files
 .serial
+*.serial
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test outputs
+nsd/
+*.zone
+
+# Backup files
+src/parser.rs.bak

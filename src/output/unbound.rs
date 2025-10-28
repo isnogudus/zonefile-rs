@@ -114,7 +114,7 @@ pub fn generate_unbound(
             .unwrap();
         }
 
-        output.push_str("\n");
+        output.push('\n');
     }
 
     for zone in reverse {
@@ -161,7 +161,7 @@ pub fn generate_unbound(
             .unwrap();
         }
 
-        output.push_str("\n");
+        output.push('\n');
     }
     output
 }

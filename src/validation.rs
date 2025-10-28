@@ -39,9 +39,66 @@ pub fn validate_dns_name(name: &str) -> Result<()> {
 }
 
 pub fn validate_email(email: &str) -> Result<()> {
-    if !email.ends_with(".") {
-        bail!("Email has to end with a dot, got: {email}")
+    // Validiere normale Email-Adresse (user@example.com)
+    if email.len() > 254 {
+        bail!("Email too long (max 254 chars): {}", email);
     }
+
+    let (local, domain) = email
+        .split_once('@')
+        .ok_or_else(|| anyhow::anyhow!("Email must contain '@', got: {}", email))?;
+
+    // Validiere local part (vor dem @)
+    if local.is_empty() {
+        bail!("Email local part (before @) cannot be empty");
+    }
+    if local.len() > 64 {
+        bail!("Email local part too long (max 64 chars): {}", local);
+    }
+    if local.starts_with('.') || local.ends_with('.') {
+        bail!("Email local part cannot start or end with '.': {}", local);
+    }
+    if local.contains("..") {
+        bail!("Email local part cannot contain consecutive dots: {}", local);
+    }
+    if !local.chars().all(|c| {
+        c.is_alphanumeric() || c == '.' || c == '+' || c == '-' || c == '_'
+    }) {
+        bail!("Email local part contains invalid characters: {}", local);
+    }
+
+    // Validiere domain part (nach dem @)
+    if domain.is_empty() {
+        bail!("Email domain (after @) cannot be empty");
+    }
+    if !domain.contains('.') {
+        bail!("Email domain must contain at least one dot (e.g., 'example.com'): {}", domain);
+    }
+
+    // Validiere Domain-Labels
+    let labels: Vec<&str> = domain.split('.').collect();
+    for label in &labels {
+        if label.is_empty() {
+            bail!("Email domain cannot have empty labels: {}", domain);
+        }
+        if label.len() > 63 {
+            bail!("Email domain label too long (max 63 chars): {}", label);
+        }
+        if label.starts_with('-') || label.ends_with('-') {
+            bail!("Email domain label cannot start/end with hyphen: {}", label);
+        }
+        if !label.chars().all(|c| c.is_alphanumeric() || c == '-') {
+            bail!("Email domain label contains invalid characters: {}", label);
+        }
+    }
+
+    // TLD darf nicht nur Zahlen sein
+    if let Some(tld) = labels.last() {
+        if tld.chars().all(|c| c.is_numeric()) {
+            bail!("Email domain TLD cannot be all numeric: {}", tld);
+        }
+    }
+
     Ok(())
 }
 
@@ -112,12 +169,35 @@ mod tests {
 
     #[test]
     fn test_validate_email_valid() {
-        assert!(validate_email("admin.example.com.").is_ok());
-        assert!(validate_email("john\\.doe.example.com.").is_ok());
+        assert!(validate_email("admin@example.com").is_ok());
+        assert!(validate_email("john.doe@example.com").is_ok());
+        assert!(validate_email("user+tag@example.com").is_ok());
+        assert!(validate_email("user_name@example.co.uk").is_ok());
+        assert!(validate_email("test-user@sub.example.com").is_ok());
     }
 
     #[test]
-    fn test_validate_email_missing_dot() {
+    fn test_validate_email_missing_at() {
         assert!(validate_email("admin.example.com").is_err());
+        assert!(validate_email("adminexample.com").is_err());
+    }
+
+    #[test]
+    fn test_validate_email_invalid_local() {
+        assert!(validate_email(".user@example.com").is_err()); // Starts with dot
+        assert!(validate_email("user.@example.com").is_err()); // Ends with dot
+        assert!(validate_email("user..name@example.com").is_err()); // Consecutive dots
+        assert!(validate_email("user name@example.com").is_err()); // Space
+        assert!(validate_email("user@name@example.com").is_err()); // Multiple @
+    }
+
+    #[test]
+    fn test_validate_email_invalid_domain() {
+        assert!(validate_email("user@example").is_err()); // No dot in domain
+        assert!(validate_email("user@.example.com").is_err()); // Starts with dot
+        assert!(validate_email("user@example..com").is_err()); // Consecutive dots
+        assert!(validate_email("user@-example.com").is_err()); // Starts with hyphen
+        assert!(validate_email("user@example-.com").is_err()); // Ends with hyphen
+        assert!(validate_email("user@123").is_err()); // TLD all numeric
     }
 }
