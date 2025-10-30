@@ -72,6 +72,7 @@ zonefile-rs -i zones.yaml -s .my-serial
   -O, --output-format <FORMAT>  Output format: unbound or nsd [default: unbound]
   -s, --serial <FILE>           Serial number file [default: .serial]
   -h, --help                    Print help
+  -V, --version                 Print version
 ```
 
 **Note**: The flags follow a consistent pattern:
@@ -387,6 +388,9 @@ SRV entry #3 'mqtt.tcp': service name 'mqtt' must start with '_'
 See LICENSE file for details.
 
 ## Version History
+
+- **v0.2.1** (2025-10-30): Version Flag
+  - Added `--version` / `-V` flag to display version information
 
 - **v0.2.0** (2025-10-28): Optional Features Release
   - **Breaking**: Changed CLI from `--yaml`/`--toml` flags to `-I`/`--input-format` and `-O`/`--output-format`

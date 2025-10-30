@@ -29,6 +29,7 @@ const DEFAULT_OUTPUT_FORMAT: &str = "nsd";
 #[derive(Parser)]
 #[command(name = "zonefile-rs")]
 #[command(about = "Generate DNS zone files from TOML or YAML configuration")]
+#[command(version)]
 struct Cli {
     /// Input file (default: stdin)
     #[arg(short, long, value_name = "FILE")]
